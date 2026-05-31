@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const hstComplaintSchema = new mongoose.Schema({
-  resident: { type: mongoose.Schema.Types.ObjectId, ref: 'HstUser', required: true },
+  resident: { type: mongoose.Schema.Types.ObjectId, ref: 'hstUser', required: true },
   roomNumber: { type: String, required: true },
   category: {
     type: String,
@@ -20,7 +20,7 @@ const hstComplaintSchema = new mongoose.Schema({
   statusHistory: [
     {
       status: String,
-      changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'HstUser' },
+      changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'hstUser' },
       note: String,
       at: { type: Date, default: Date.now },
     },
