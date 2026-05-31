@@ -11,7 +11,7 @@ exports.submitComplaint = async (req, res, next) => {
     if (!category || !title || !description)
       return res.status(400).json({ error: 'category, title, and description are required' });
 
-    const resident = await HstUser.findById(req.user.id).select('roomNumber name');
+    const resident = await HstUser.findById(req.user.id).select('name roomId').populate('roomId', 'roomNumber');
     if (!resident) return res.status(404).json({ error: 'Resident not found' });
 
     const photos = (req.files || []).map(f => ({
@@ -21,7 +21,7 @@ exports.submitComplaint = async (req, res, next) => {
 
     const complaint = await HstComplaint.create({
       resident: req.user.id,
-      roomNumber: resident.roomNumber || 'N/A',
+      roomNumber: resident.roomId?.roomNumber || 'N/A',
       category,
       title: title.trim(),
       description: description.trim(),
@@ -56,10 +56,18 @@ exports.allComplaints = async (req, res, next) => {
     if (req.query.category) filter.category = req.query.category;
 
     const complaints = await HstComplaint.find(filter)
-      .populate('resident', 'name email roomNumber')
+      .populate({ path: 'resident', select: 'name email roomId', populate: { path: 'roomId', select: 'roomNumber' } })
       .sort({ createdAt: -1 })
       .lean();
-    res.json(complaints);
+
+    const normalized = complaints.map(c => ({
+      ...c,
+      roomNumber: (c.roomNumber && c.roomNumber !== 'N/A')
+        ? c.roomNumber
+        : (c.resident?.roomId?.roomNumber || 'N/A'),
+    }));
+
+    res.json(normalized);
   } catch (err) {
     next(err);
   }

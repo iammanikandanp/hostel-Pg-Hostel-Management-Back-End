@@ -21,11 +21,12 @@ const hstUserSchema = new mongoose.Schema({
   },
   securityDeposit: {
     amount:         { type: Number, default: 0 },
-    status:         { type: String, enum: ['held', 'partially_refunded', 'refunded'], default: 'held' },
+    status:         { type: String, enum: ['held', 'partially_refunded', 'refunded', 'closed'], default: 'held' },
     refundedAmount: { type: Number, default: 0 },
     refundDate:     { type: Date,   default: null },
     deductionNotes: { type: String, default: null },
   },
+  moveOutDate: { type: Date, default: null },
   isVerified:      { type: Boolean, default: false },
   isActive:      { type: Boolean, default: true },
   mustChangePassword: { type: Boolean, default: true },

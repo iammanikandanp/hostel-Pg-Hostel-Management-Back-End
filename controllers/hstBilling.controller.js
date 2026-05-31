@@ -92,6 +92,11 @@ exports.hstGenerateBills = async (req, res, next) => {
         foodTotal:        foodCharge,
         total,
         paymentLink: payLinkUrl,
+        billComponents: {
+          rent:        bc.rent        ?? true,
+          electricity: bc.electricity ?? true,
+          food:        bc.food        ?? true,
+        },
       });
 
       try {

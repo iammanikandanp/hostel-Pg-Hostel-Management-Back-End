@@ -9,7 +9,8 @@ exports.hstGetAllResidents = async (req, res, next) => {
   try {
     const residents = await hstUser.find({ role: 'resident' })
       .populate('roomId', 'roomNumber floor')
-      .select('-password');
+      .select('-password')
+      .sort({ createdAt: -1 });
     res.json({ success: true, residents });
   } catch (err) { next(err); }
 };
@@ -27,12 +28,13 @@ exports.hstAddResident = async (req, res, next) => {
       billRent:        Joi.boolean().optional(),
       billElectricity: Joi.boolean().optional(),
       billFood:        Joi.boolean().optional(),
+      depositAmount:   Joi.number().min(0).optional(),
     });
     const { error, value } = schema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const tempPassword = crypto.randomBytes(6).toString('base64url');
-    const { billRent, billElectricity, billFood, ...residentFields } = value;
+    const { billRent, billElectricity, billFood, depositAmount, ...residentFields } = value;
 
     const files = req.files ?? {};
     const resident = await hstUser.create({
@@ -47,6 +49,9 @@ exports.hstAddResident = async (req, res, next) => {
         electricity: billElectricity ?? true,
         food:        billFood        ?? true,
       },
+      ...(depositAmount > 0 && {
+        securityDeposit: { amount: depositAmount, status: 'held' },
+      }),
     });
 
     await hstSendWhatsApp(value.phone,
@@ -66,6 +71,8 @@ exports.hstMoveOut = async (req, res, next) => {
     const user = await hstUser.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Resident not found' });
 
+    const now = new Date();
+
     if (user.roomId) {
       const oldRoom = await hstRoom.findById(user.roomId).select('roomNumber floor');
       if (oldRoom) {
@@ -74,7 +81,7 @@ exports.hstMoveOut = async (req, res, next) => {
           roomNumber: oldRoom.roomNumber,
           floor:      oldRoom.floor,
           fromDate:   user.moveInDate || user.createdAt,
-          toDate:     new Date(),
+          toDate:     now,
           movedBy:    req.user._id,
           note:       'Move-out',
         });
@@ -82,7 +89,14 @@ exports.hstMoveOut = async (req, res, next) => {
       await hstRoom.findByIdAndUpdate(user.roomId, { $pull: { members: user._id } });
       user.roomId = null;
     }
-    user.isActive = false;
+    user.isActive   = false;
+    user.moveOutDate = now;
+
+    // Mark deposit as closed only if no deposit was collected
+    if (!user.securityDeposit?.amount) {
+      user.securityDeposit.status = 'closed';
+    }
+
     await user.save();
 
     hstAudit({ user: req.user, action: 'moveout', module: 'Resident', targetId: user._id, targetLabel: user.name, req });
@@ -145,7 +159,7 @@ exports.hstUpdateResident = async (req, res, next) => {
       billElectricity: Joi.boolean().optional(),
       billFood:        Joi.boolean().optional(),
       depositAmount:   Joi.number().min(0).optional(),
-      depositStatus:   Joi.string().valid('held', 'partially_refunded', 'refunded').optional(),
+      depositStatus:   Joi.string().valid('held', 'partially_refunded', 'refunded', 'closed').optional(),
       depositRefundedAmount: Joi.number().min(0).optional(),
       depositRefundDate:     Joi.date().allow(null).optional(),
       depositDeductionNotes: Joi.string().max(500).allow('', null).optional(),

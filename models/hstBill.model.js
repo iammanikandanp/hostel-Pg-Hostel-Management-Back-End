@@ -14,6 +14,11 @@ const hstBillSchema = new mongoose.Schema({
   paymentId:        { type: String, default: null },
   paymentLink:      { type: String, default: null },
   pdfUrl:           { type: String, default: null },
+  billComponents: {
+    rent:        { type: Boolean, default: true },
+    electricity: { type: Boolean, default: true },
+    food:        { type: Boolean, default: true },
+  },
   paidComponents: {
     rent:        { type: Boolean, default: false },
     electricity: { type: Boolean, default: false },
