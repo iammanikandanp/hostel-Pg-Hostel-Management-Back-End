@@ -13,7 +13,7 @@ const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const cookieOpts = (maxAge) => ({
   httpOnly: true,
   secure:   process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax',
+  sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
   maxAge,
 });
 
@@ -122,7 +122,7 @@ exports.hstLogin = async (req, res, next) => {
 
 exports.hstLogout = (req, res) => {
   hstAudit({ user: req.user, action: 'logout', module: 'Auth', targetLabel: req.user?.email, req });
-  const clear = { httpOnly: true, expires: new Date(0) };
+  const clear = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', expires: new Date(0) };
   res.cookie('hst_token',   '', clear);
   res.cookie('hst_refresh', '', clear);
   res.json({ success: true, message: 'Logged out' });
@@ -235,7 +235,7 @@ exports.hstRevokeSession = async (req, res, next) => {
 exports.hstRevokeAllSessions = async (req, res, next) => {
   try {
     await hstUser.findByIdAndUpdate(req.user._id, { activeSessions: [] });
-    const clear = { httpOnly: true, expires: new Date(0) };
+    const clear = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', expires: new Date(0) };
     res.cookie('hst_token', '', clear);
     res.cookie('hst_refresh', '', clear);
     res.json({ success: true, message: 'All sessions revoked' });
